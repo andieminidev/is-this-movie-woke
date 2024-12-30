@@ -30,9 +30,14 @@
       </div>
     </div>
 
+    <!-- Loading State -->
+    <div v-if="loading" class="mt-8 text-white">
+      Loading movie details...
+    </div>
+
     <!-- Movie Score -->
     <WokeScore 
-      v-if="selectedMovie" 
+      v-if="selectedMovie && !loading" 
       :movie="selectedMovie"
       :score="movieScore"
       class="mt-8 md:mt-12 px-4"
@@ -41,29 +46,47 @@
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { ref, onMounted } from 'vue'
 import MovieSearch from '../components/MovieSearch.vue'
 import WokeScore from '../components/WokeScore.vue'
+import { getMovieDetails, getRecentPopularMovies } from '../services/tmdb'
+import { analyzeWokeScore } from '../services/wokeAnalyzer'
 
 const selectedMovie = ref(null)
-const movieScore = ref({
-  wokeScore: 75,
-  categories: {
-    diversity: 8,
-    genderRepresentation: 7,
-    socialMessages: 6
+const movieScore = ref(null)
+const loading = ref(false)
+const popularMovies = ref([])
+
+onMounted(async () => {
+  try {
+    popularMovies.value = await getRecentPopularMovies()
+  } catch (error) {
+    console.error('Error loading popular movies:', error)
   }
 })
 
-const popularMovies = [
-  { id: 1, title: 'The Little Mermaid' },
-  { id: 2, title: 'Captain Marvel' },
-  { id: 3, title: 'Black Panther' }
-]
-
-const handleMovieSelect = (movie) => {
-  selectedMovie.value = movie
-  // For now, we'll use the same hardcoded score
-  // Later this will come from the API
+const handleMovieSelect = async (movie) => {
+  loading.value = true
+  try {
+    const details = await getMovieDetails(movie.id)
+    selectedMovie.value = {
+      ...movie,
+      poster: details.poster,
+      year: details.year,
+      runtime: `${Math.floor(details.runtime / 60)}h ${details.runtime % 60}m`,
+      rating: details.adult ? 'R' : 'PG-13',
+      synopsis: details.synopsis,
+      imdbRating: (details.vote_average || 0).toFixed(1),
+      rtScore: Math.round((details.vote_average || 0) * 10),
+      metacritic: Math.round((details.vote_average || 0) * 10)
+    }
+    
+    const analysis = analyzeWokeScore(details.reviews)
+    movieScore.value = analysis
+  } catch (error) {
+    console.error('Error loading movie details:', error)
+  } finally {
+    loading.value = false
+  }
 }
 </script>
