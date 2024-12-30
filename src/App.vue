@@ -1,5 +1,5 @@
 <template>
-  <div class="min-h-screen bg-gradient-to-br from-slate-900 to-purple-900 relative">
+  <div class="min-h-screen bg-gradient-to-br from-slate-900 to-purple-900 flex flex-col">
     <!-- Burger Menu -->
     <Menu as="div" class="fixed top-6 right-6 z-50">
       <MenuButton class="p-2.5 rounded-lg bg-white/10 backdrop-blur-md border border-white/20 
@@ -32,12 +32,15 @@
                          shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none">
           <div class="p-1">
             <MenuItem v-slot="{ active }">
-              <a href="#" :class="[
-                active ? 'bg-white/20' : '',
-                'block px-4 py-2 text-sm text-white rounded-lg'
-              ]">
+              <router-link 
+                to="/about"
+                :class="[
+                  active ? 'bg-white/20' : '',
+                  'block px-4 py-2 text-sm text-white rounded-lg'
+                ]"
+              >
                 About
-              </a>
+              </router-link>
             </MenuItem>
             <MenuItem v-slot="{ active }">
               <a href="#" :class="[
@@ -52,11 +55,11 @@
       </transition>
     </Menu>
     
-    <main class="pt-20">
-      <HomeView />
+    <main class="pt-20 flex-grow">
+      <router-view></router-view>
     </main>
 
-    <footer class="py-6 text-center text-gray-300 text-md absolute bottom-0 w-full">
+    <footer class="py-6 text-center text-gray-300 text-md mt-auto">
       App made by 
       <a 
         href="https://github.com/andieminidev" 
@@ -72,5 +75,5 @@
 
 <script setup>
 import { Menu, MenuButton, MenuItems, MenuItem } from '@headlessui/vue'
-import HomeView from './views/HomeView.vue'
+import { RouterLink, RouterView } from 'vue-router'
 </script>
