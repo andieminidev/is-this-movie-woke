@@ -24,12 +24,45 @@ export const searchMovies = async (query) => {
 
 export const getMovieDetails = async (movieId) => {
   try {
-    const [details, reviews, credits] = await Promise.all([
+    const [details, similar, credits, keywords] = await Promise.all([
       tmdbApi.get(`/movie/${movieId}`),
-      tmdbApi.get(`/movie/${movieId}/reviews`),
-      tmdbApi.get(`/movie/${movieId}/credits`)
+      tmdbApi.get(`/movie/${movieId}/similar`),
+      tmdbApi.get(`/movie/${movieId}/credits`),
+      tmdbApi.get(`/movie/${movieId}/keywords`)
     ]);
     
+    const similarMoviesWithRuntime = await Promise.all(
+      (similar.data.results || [])  
+        .filter(movie => movie && movie.id)
+        .slice(0, 3)
+        .map(async movie => {
+          try {
+            const details = await tmdbApi.get(`/movie/${movie.id}`);
+            return {
+              id: movie.id,
+              title: movie.title || 'Unknown Title',
+              poster: details.data.poster_path 
+                ? `https://image.tmdb.org/t/p/w500${details.data.poster_path}`
+                : null,
+              runtime: details.data.runtime 
+                ? `${Math.floor(details.data.runtime / 60)}h ${details.data.runtime % 60}m`
+                : 'Unknown',
+              rating: (details.data.vote_average || 0).toFixed(1),
+              year: details.data.release_date 
+                ? new Date(details.data.release_date).getFullYear()
+                : 'Unknown',
+              genres: (details.data.genres || []).slice(0, 2),
+              originalRuntime: details.data.runtime || 0
+            };
+          } catch (error) {
+            console.error(`Error fetching details for similar movie ${movie.id}:`, error);
+            return null;
+          }
+        })
+    );
+
+    const validSimilarMovies = similarMoviesWithRuntime.filter(movie => movie !== null);
+
     return {
       ...details.data,
       poster: details.data.poster_path 
@@ -37,8 +70,16 @@ export const getMovieDetails = async (movieId) => {
         : null,
       year: new Date(details.data.release_date).getFullYear(),
       synopsis: details.data.overview,
-      reviews: reviews.data.results,
-      credits: credits.data
+      similar: validSimilarMovies,
+      runtime: details.data.runtime 
+        ? `${Math.floor(details.data.runtime / 60)}h ${details.data.runtime % 60}m`
+        : 'Unknown',
+      cast: credits.data.cast.slice(0, 3).map(actor => actor.name),
+      director: credits.data.crew.find(p => p.job === 'Director')?.name,
+      keywords: keywords.data.keywords.map(k => k.name),
+      budget: details.data.budget,
+      popularity: details.data.popularity,
+      originalLanguage: details.data.original_language
     };
   } catch (error) {
     console.error('Error fetching movie details:', error);
@@ -48,7 +89,6 @@ export const getMovieDetails = async (movieId) => {
 
 export const getRecentPopularMovies = async () => {
   try {
-    // Get movies from the past year
     const currentDate = new Date();
     const lastYear = new Date(currentDate.setFullYear(currentDate.getFullYear() - 1));
     const formattedDate = lastYear.toISOString().split('T')[0];
